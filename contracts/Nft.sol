@@ -12,6 +12,21 @@ contract Nft is ERC721, Ownable{
     string public baseURI;
     bool public paused;
 
+    uint256 public maxOwned = 10000;
+    uint256 public totalAmount;
+
+    struct NftInfo {
+        bytes32 ipfsHash;
+        uint256 currencyOption;
+        uint256 saleOption;
+        uint256 price;
+        address creator;
+        address owner;
+    }
+    NftInfo[] public nftList;
+
+    event NftMinted(address minter, uint256 tokenId, bytes32 ipfsHash, uint256 currencyOption, uint256 saleOption, uint256 price, address creator, uint256 created);
+
     constructor() ERC721("Odsy NFT", "ODSY") {}
     function setPaused(bool s_) public onlyOwner {
         paused = s_;
@@ -35,5 +50,17 @@ contract Nft is ERC721, Ownable{
 
     function setBaseURI(string memory _newBaseURI) public onlyOwner {
         baseURI = _newBaseURI;
+    }
+
+    function mint(bytes32 hash_, uint256 curOpt, uint256 saleOpt, uint256 price) public {
+        require(balanceOf(msg.sender) < maxOwned, "Maximumlly can own 10,000 NFTs");
+        _safeMint(msg.sender, totalAmount);
+
+        NftInfo memory temp = NftInfo(hash_, curOpt, saleOpt, price, msg.sender, msg.sender);
+        nftList.push(temp);
+
+        emit NftMinted(msg.sender, totalAmount, hash_, curOpt, saleOpt, price, msg.sender, block.timestamp);
+
+        totalAmount += 1;
     }
 }
