@@ -1,7 +1,4 @@
-// File: @openzeppelin/contracts/utils/introspection/IERC165.sol
-
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
 
 pragma solidity ^0.8.0;
 
@@ -12,20 +9,17 @@ contract Nft is ERC721, Ownable{
     string public baseURI;
     bool public paused;
 
-    uint256 public maxOwned = 10000;
     uint256 public totalAmount;
-
     struct NftInfo {
-        bytes32 ipfsHash;
-        uint256 currencyOption;
+        string ipfsHash;
         uint256 saleOption;
+        uint256 currencyOption;
         uint256 price;
-        address creator;
-        address owner;
+        uint256 royalty;
+        address payable creator;
+        address payable owner;
     }
-    NftInfo[] public nftList;
-
-    event NftMinted(address minter, uint256 tokenId, bytes32 ipfsHash, uint256 currencyOption, uint256 saleOption, uint256 price, address creator, uint256 created);
+    mapping(uint256 => NftInfo) public nftList; // {tokenId : {hash, currency, sale, price, royalty, creator, owner}}
 
     constructor() ERC721("Odsy NFT", "ODSY") {}
     function setPaused(bool s_) public onlyOwner {
@@ -52,15 +46,43 @@ contract Nft is ERC721, Ownable{
         baseURI = _newBaseURI;
     }
 
-    function mint(bytes32 hash_, uint256 curOpt, uint256 saleOpt, uint256 price) public {
-        require(balanceOf(msg.sender) < maxOwned, "Maximumlly can own 10,000 NFTs");
+    function mint(string memory hash_, uint256 sale, uint256 cur, uint256 price, uint256 royalty) emergencyPause public {
+        // { sale: [sell, auction], cur: [native, erc20], price: {}, royalty: {}}
         _safeMint(msg.sender, totalAmount);
-
-        NftInfo memory temp = NftInfo(hash_, curOpt, saleOpt, price, msg.sender, msg.sender);
-        nftList.push(temp);
-
-        emit NftMinted(msg.sender, totalAmount, hash_, curOpt, saleOpt, price, msg.sender, block.timestamp);
-
+        NftInfo memory temp = NftInfo(hash_, sale, cur, price, royalty, payable(msg.sender), payable(msg.sender));
+        nftList[totalAmount] = temp;
         totalAmount += 1;
+    }
+
+    function updateSaleMethod(uint256 tokenId, uint256 sale_) public {
+        require(_exists(tokenId), 'Token Id does not exist.');
+        NftInfo storage nft = nftList[tokenId];
+        // require(msg.sender == nft.owner, 'Only owner can update sale method.');
+        require(_isApprovedOrOwner(msg.sender, tokenId), "transfer caller is not owner nor approved");
+        require(sale_ < 3, 'Sale option is between 0 and 2.');
+        nft.saleOption = sale_;
+    }
+
+    function updatePrice(uint256 tokenId, uint256 price_) public {
+        require(_exists(tokenId), 'Token Id does not exist.');
+        NftInfo storage nft = nftList[tokenId];
+        // require(msg.sender == nft.owner, 'Only owner can update price.');
+        require(_isApprovedOrOwner(msg.sender, tokenId), "transfer caller is not owner nor approved");
+        nft.price = price_;
+    }
+
+    function updateOwner(uint256 tokenId, address payable owner_) public {
+        require(_exists(tokenId), 'Token Id does not exist.');
+        NftInfo storage nft = nftList[tokenId];
+        // require(msg.sender == nft.owner, 'Only owner can update price.');
+        require(_isApprovedOrOwner(msg.sender, tokenId), "transfer caller is not owner nor approved");
+        require(owner_ != address(0), 'New owner address can not be zero');
+        nft.owner = owner_;
+    }
+
+    function exists(uint256 tokenId) public view returns(bool) {
+        bool exist;
+        exist = _exists(tokenId);
+        return exist;
     }
 }
