@@ -142,4 +142,39 @@ contract('Auction contract', (accounts) => {
         auctionEth = await web3.eth.getBalance(auction.address)
         console.log('Auction contract balance: ', web3.utils.fromWei(auctionEth, 'ether'))
     })
+
+    it('cancel auction', async() => {
+        let now = new Date()
+        let currentStamp = now.getTime()
+        let delay_1 = currentStamp + 5 * 1000 // 5 second
+        let delay_2 = currentStamp + 10 * 1000 // 10 second
+
+        let tokenId, startPrice, startAt, endAt
+
+        tokenId = 1
+        startPrice = web3.utils.toWei('1', 'ether')
+        startAt = Math.floor(delay_1 / 1000)
+        endAt = Math.floor(delay_2 / 1000)
+
+        // open auction of NFT #2
+        await nft.approve(auction.address, tokenId)
+        await auction.openAuction(tokenId, startPrice, startAt, endAt)
+        // Waiting until auction start time
+        let delay = await getIntervalToStart(tokenId)
+        await delayFunc(delay);
+        // place a bid
+        await auction.placeBid(tokenId, web3.utils.toWei('1.2', 'ether'), {from: accounts[3],value: web3.utils.toWei('1.2', 'ether')})
+        // place a bid
+        await auction.placeBid(tokenId, web3.utils.toWei('1.3', 'ether'), {from: accounts[2],value: web3.utils.toWei('1.3', 'ether')})
+        // cancel auction by non-creator
+        try {
+            await auction.cancelAuction(tokenId, {from: accounts[9]})
+        } catch (e) { console.log(e.reason) }
+        // cancel auction by creator
+        await auction.cancelAuction(tokenId, {from: accounts[0]})
+        // place a bid
+        try {
+            await auction.placeBid(tokenId, web3.utils.toWei('1.5', 'ether'), {from: accounts[5],value: web3.utils.toWei('1.5', 'ether')})
+        } catch (e) { console.log(e.reason) }
+    })
 })

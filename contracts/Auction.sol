@@ -73,11 +73,15 @@ contract Auction is Ownable {
             INft(nftAddr).transferFrom(from, to, tokenId);
             payable(from).transfer(highestBid[tokenId]*(100-auctionFeeInNative)/100);
         }
+        openAuctions[tokenId] = false;
     }
 
     function cancelAuction(uint256 tokenId) public tokenExist(tokenId) openedAuction(tokenId) {
-        payable(highestBidder[tokenId]).transfer(highestBid[tokenId]);
+        require(msg.sender == auctionList[tokenId].creator, 'Only auction creator can cancel.');
+        if(auctionList[tokenId].creator != highestBidder[tokenId]) // At least one placed a bid on this auction.
+            payable(highestBidder[tokenId]).transfer(highestBid[tokenId]);
         AuctionInfo memory temp = AuctionInfo(0, 0, 0, address(0));
         auctionList[tokenId] = temp;
+        openAuctions[tokenId] = false;
     }
 }
