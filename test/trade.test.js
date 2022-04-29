@@ -52,12 +52,6 @@ contract('Trade contract', (accounts) => {
         } catch (e) { console.log(e.reason) }
 
         await nft.approve(trade.address, 0)
-        let bal_0 = await web3.eth.getBalance(accounts[0])
-        let bal_9 = await web3.eth.getBalance(accounts[9])
-        console.log(bal_0, bal_9)
         await trade.buy(0, {from: accounts[9], value: web3.utils.toWei('1', 'ether')})
-        bal_0 = await web3.eth.getBalance(accounts[0])
-        bal_9 = await web3.eth.getBalance(accounts[9])
-        console.log(bal_0, bal_9)
     })
 })

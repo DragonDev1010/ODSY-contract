@@ -7,4 +7,6 @@ interface INft {
     function updateOwner(uint256 tokenId, address owner_) external;
     function nftList(uint256) external returns(string memory, uint256, uint256, uint256, uint256, address payable, address payable);
     function exists(uint256 tokenId) external view returns(bool);
+    function updateSaleMethod(uint256 tokenId, uint256 sale_) external;
+    function updatePrice(uint256 tokenId, uint256 price_) external;
 }

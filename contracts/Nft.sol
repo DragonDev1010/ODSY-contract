@@ -12,8 +12,8 @@ contract Nft is ERC721, Ownable{
     uint256 public totalAmount;
     struct NftInfo {
         string ipfsHash;
-        uint256 saleOption;
-        uint256 currencyOption;
+        uint256 saleOption; // {0: sale, 1: auction}
+        uint256 currencyOption; // {0: native, 1: $ODSY}
         uint256 price;
         uint256 royalty;
         address payable creator;
