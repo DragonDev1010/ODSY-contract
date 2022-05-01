@@ -35,6 +35,7 @@ contract('Auction contract', (accounts) => {
         odsy = await Odsy.deployed()
         nft = await Nft.deployed()
         auction = await Auction.deployed()
+        await nft.setAuctionAddr(auction.address)
     })
 
     it('mint nft', async() => {
@@ -48,7 +49,7 @@ contract('Auction contract', (accounts) => {
         await nft.mint(hash_, sale, currency, price, royalty)
 
         hash_ = "QmPAd7oqiiCqi7Z6LRWzaz8vhZeJT4jxmckWWeXydJsQwu"
-        sale = 1 // {0:'sale', 1:'auction'}
+        sale = 0 // {0:'sale', 1:'auction'}
         currency = 0 // {0:'native', 1:'erc20'}
         price = web3.utils.toWei('1', 'ether')
         royalty = 3 // 3%
@@ -176,5 +177,73 @@ contract('Auction contract', (accounts) => {
         try {
             await auction.placeBid(tokenId, web3.utils.toWei('1.5', 'ether'), {from: accounts[5],value: web3.utils.toWei('1.5', 'ether')})
         } catch (e) { console.log(e.reason) }
+    })
+
+    it('comprehensive testing with $ODSY', async() => {
+
+        // Mint NFT
+        // {token Id: 2, sale: sale, currency: $ODSY}
+        let hash_, sale, currency, price, royalty
+        hash_ = "QmPAd7oqiiCqi7Z6LRWzaz8vhZeJT4jxmckWWeXydJsQwu"
+        sale = 0 // {0:'sale', 1:'auction'}
+        currency = 1 // {0:'native', 1:'erc20'}
+        price = web3.utils.toWei('1', 'ether')
+        royalty = 3 // 3%
+        await nft.mint(hash_, sale, currency, price, royalty)
+
+        // Mint $ODSY to `accounts[3]`
+        await odsy.mint(web3.utils.toWei('1000', 'ether'), {from: accounts[3]})
+
+        // Open auction #2 NFT in $ODSY
+        let now = new Date()
+        let currentStamp = now.getTime()
+        let delay_1 = currentStamp + 5 * 1000 // 5 second
+        let delay_2 = currentStamp + 10 * 1000 // 10 second
+
+        let tokenId, startPrice, startAt, endAt
+
+        tokenId = 2
+        startPrice = web3.utils.toWei('1', 'ether')
+        startAt = Math.floor(delay_1 / 1000)
+        endAt = Math.floor(delay_2 / 1000)
+        await nft.approve(auction.address, tokenId)
+        await auction.openAuction(tokenId, startPrice, startAt, endAt)
+
+        // place a bid
+        // waiting for auction in start time
+        let delay = await getIntervalToStart(tokenId)
+        await delayFunc(delay);
+
+        tx = await odsy.balanceOf(accounts[3])
+        console.log('bidder $ODSY balance before bidding:', web3.utils.fromWei(tx, 'ether'))
+        
+        // approve $ODSY for placing bid
+        await odsy.approve(auction.address, web3.utils.toWei('1.2', 'ether'), {from: accounts[3]})
+        await auction.placeBid(tokenId, web3.utils.toWei('1.2', 'ether'), {from: accounts[3],value: web3.utils.toWei('1.2', 'ether')})
+        
+        tx = await odsy.balanceOf(accounts[3])
+        console.log('bidder $ODSY balance after bidding:', web3.utils.fromWei(tx, 'ether'))
+
+        // complete auction
+        // waiting for auction is end time
+        delay = await getIntervalToEnd(tokenId)
+        await delayFunc(delay)
+
+        tx = await odsy.balanceOf(accounts[0])
+        console.log('auction creator $ODSY balance before completing auction: ', web3.utils.fromWei(tx, 'ether'))
+        tx = await odsy.balanceOf(auction.address)
+        console.log('auction contract $ODSY balance before completing auction: ', web3.utils.fromWei(tx, 'ether'))
+        let beforeOwner = await nft.ownerOf(tokenId)
+        
+        await auction.completeAuction(tokenId)
+        
+        tx = await odsy.balanceOf(accounts[0])
+        console.log('auction creator $ODSY balance after completing auction: ', web3.utils.fromWei(tx, 'ether'))
+        tx = await odsy.balanceOf(auction.address)
+        console.log('auction contract $ODSY balance after completing auction: ', web3.utils.fromWei(tx, 'ether'))
+        let afterOwner = await nft.ownerOf(tokenId)
+
+        assert.equal(beforeOwner, accounts[0], 'owner is `accounts[0]` before completing auction')
+        assert.equal(afterOwner, accounts[3], 'owner is `accounts[3]` after completing auction')
     })
 })

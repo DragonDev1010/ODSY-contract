@@ -8,6 +8,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 contract Nft is ERC721, Ownable{
     string public baseURI;
     bool public paused;
+    address public auctionAddr;
 
     uint256 public totalAmount;
     struct NftInfo {
@@ -58,7 +59,7 @@ contract Nft is ERC721, Ownable{
         require(_exists(tokenId), 'Token Id does not exist.');
         NftInfo storage nft = nftList[tokenId];
         // require(msg.sender == nft.owner, 'Only owner can update sale method.');
-        require(_isApprovedOrOwner(msg.sender, tokenId), "transfer caller is not owner nor approved");
+        require(_isApprovedOrOwner(msg.sender, tokenId) || msg.sender == auctionAddr, "transfer caller is not owner nor approved");
         require(sale_ < 3, 'Sale option is between 0 and 2.');
         nft.saleOption = sale_;
     }
@@ -84,5 +85,9 @@ contract Nft is ERC721, Ownable{
         bool exist;
         exist = _exists(tokenId);
         return exist;
+    }
+
+    function setAuctionAddr(address addr_) public onlyOwner {
+        auctionAddr = addr_;
     }
 }
