@@ -11,6 +11,12 @@ contract Trade is Ownable {
     uint256 public tradeFeeInOdsy = 4;
     address public nftAddress;
     address public odsyAddress;
+    address public wrapEthAddr;
+
+    modifier tokenExist (uint256 tokenId) {
+        require(INft(nftAddress).exists(tokenId), 'Token Id does not exist.');
+        _;
+    }
 
     constructor(address nft_, address odsy_) { nftAddress = nft_; odsyAddress = odsy_; }
 
@@ -20,10 +26,7 @@ contract Trade is Ownable {
         payable(owner()).transfer(amount);
     }
 
-    function buy(uint256 tokenId) public payable {
-        bool tokenExist = INft(nftAddress).exists(tokenId);
-        require(tokenExist, 'Token Id does not exist.');
-        // string memory ipfsHash;
+    function buy(uint256 tokenId) public payable tokenExist(tokenId) {
         uint256 saleOption; // {0: sale, 1: auction}
         uint256 currencyOption; // {0: native, 1; odsy}
         uint256 price;
@@ -55,7 +58,38 @@ contract Trade is Ownable {
         INft(nftAddress).transferFrom(ownerAddr, msg.sender, tokenId);
     }
 
+    function acceptOffer(uint256 tokenId, uint256 offerPrice, address buyer) public payable tokenExist(tokenId) {
+        uint256 saleOption; // {0: sale, 1: auction}
+        uint256 currencyOption; // {0: native, 1; odsy}
+        uint256 royalty;
+        address payable creator;
+        address payable ownerAddr;
+        (,saleOption ,currencyOption , , royalty, creator, ownerAddr) = INft(nftAddress).nftList(tokenId);
+
+        require(msg.sender == ownerAddr, 'Only owner can accept offer.');
+        require(saleOption == 0, 'NFT is in auction.');
+
+        address tokenAddr;
+        uint256 tradeFee;
+        if(currencyOption == 0) {
+            tokenAddr = wrapEthAddr;
+            tradeFee = tradeFeeInNative;
+        } else {
+            tokenAddr = odsyAddress;
+            tradeFee = tradeFeeInOdsy;
+        }
+
+        require(IERC20(tokenAddr).allowance(buyer, address(this)) >= offerPrice, 'Buyer does not approve enough $ODSY.');
+        if(ownerAddr == creator)
+            IERC20(tokenAddr).transferFrom(buyer, ownerAddr, (offerPrice*(100-tradeFee)/100));
+        else {
+            IERC20(tokenAddr).transferFrom(buyer, ownerAddr, (offerPrice*(100-tradeFee-royalty)/100));
+            IERC20(tokenAddr).transferFrom(buyer, creator, (offerPrice*royalty/100));
+        }
+    }
+
     function setTradeFeeInNative (uint256 fee_) public onlyOwner { tradeFeeInNative = fee_; }
     function setTradeFeeInOdsy (uint256 fee_) public onlyOwner { tradeFeeInOdsy = fee_; }
     function updateNftAddress (address addr_) public onlyOwner { nftAddress = addr_; }
+    function setWrapEthAddr (address addr_) public onlyOwner { wrapEthAddr = addr_; }
 }

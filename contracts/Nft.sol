@@ -60,7 +60,7 @@ contract Nft is ERC721, Ownable{
         NftInfo storage nft = nftList[tokenId];
         // require(msg.sender == nft.owner, 'Only owner can update sale method.');
         require(_isApprovedOrOwner(msg.sender, tokenId) || msg.sender == auctionAddr, "transfer caller is not owner nor approved");
-        require(sale_ < 3, 'Sale option is between 0 and 2.');
+        require(sale_ < 3, 'Sale option can be 0 or 1.');
         nft.saleOption = sale_;
     }
 
